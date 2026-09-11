@@ -1,0 +1,40 @@
+[project]
+name = "cet-agent"
+version = "0.1.0"
+description = "CET-4/CET-6 AI training agent based on the cet-skill knowledge base"
+requires-python = ">=3.11"
+readme = "README.md"
+license = { text = "MIT" }
+authors = [{ name = "cet-agent contributors" }]
+
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "python-dotenv>=1.0",
+    "pydantic>=2.9",
+    "pydantic-settings>=2.6",
+    "anthropic>=0.39",
+    "openai>=1.54",
+    "httpx>=0.27",
+    "sqlalchemy>=2.0",
+    "aiosqlite>=0.20",
+    "sqlite-vec>=0.1.6",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "ruff>=0.7",
+]
+
+[tool.uv]
+package = false
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

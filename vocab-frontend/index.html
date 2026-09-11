@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <link rel="icon" href="/static/favicon.ico">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="CET Agent 词汇训练 · 打字与默写">
+    <title>CET Agent · 四六级 AI 备考助手</title>
+    <link rel="stylesheet" href="/static/nav.css">
+    <link rel="stylesheet" href="/static/click-effect.css">
+    <script>
+      // Apply theme before render to avoid a light->dark flash.
+      (function () {
+        var t = localStorage.getItem('cet-agent-theme');
+        if (t === 'dark' || t === 'light') document.documentElement.setAttribute('data-theme', t);
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="app"></div>
+    <!-- Global click-effect (falling words). Only ChatView triggers it; other
+         tabs leave window.CET4Effect untouched, so no side effect. -->
+    <script src="/static/cet4-effect.iife.js"></script>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

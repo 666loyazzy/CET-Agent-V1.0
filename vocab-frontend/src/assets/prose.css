@@ -1,0 +1,46 @@
+/* Typography for marked-rendered LLM output. Global (not scoped) because
+   v-html injects DOM that scoped selectors won't hit. Follows data-theme
+   via --cet-* tokens. */
+
+.prose h1,
+.prose h2,
+.prose h3 {
+  margin-top: 0.6em;
+  margin-bottom: 0.4em;
+  color: var(--cet-ink);
+}
+.prose p { margin: 0.4em 0; }
+.prose ul,
+.prose ol { margin: 0.4em 0; padding-left: 1.4em; }
+.prose li { margin: 0.15em 0; }
+.prose table { border-collapse: collapse; margin: 0.6em 0; }
+.prose th,
+.prose td {
+  border: 1px solid var(--cet-line);
+  padding: 4px 8px;
+}
+.prose code {
+  background: var(--cet-surface-2);
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 0.85em;
+}
+.prose pre {
+  background: #0f172a;
+  color: #e2e8f0;
+  padding: 8px 12px;
+  border-radius: 6px;
+  overflow-x: auto;
+}
+.prose pre code {
+  background: transparent;
+  padding: 0;
+}
+
+:root[data-theme="dark"] .prose {
+  color: var(--cet-text);
+}
+:root[data-theme="dark"] .prose code {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--cet-text);
+}

@@ -1,0 +1,41 @@
+/* Falling-word bubble driven by cet4-effect.iife.js.
+   Extracted from style.css during the chat-page migration so both the
+   Vue SPA and the legacy Alpine page can share it. */
+
+.cet-click-word {
+  position: absolute;
+  pointer-events: none;
+  user-select: none;
+  z-index: 9999;
+  text-align: center;
+  line-height: 1.15;
+  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  will-change: transform, opacity;
+  animation: cet-float 1.3s cubic-bezier(0.22, 0.85, 0.36, 1) forwards;
+}
+.cet-click-word > .en {
+  display: block;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  background: linear-gradient(135deg, #10b981 0%, #06b6d4 55%, #8b5cf6 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: #10b981;
+  filter: drop-shadow(0 1px 2px rgba(15, 23, 42, 0.18));
+}
+.cet-click-word > .zh {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #475569;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.9);
+}
+@keyframes cet-float {
+  0%   { transform: translate(-50%, -50%) scale(0.55) rotate(-4deg); opacity: 0; }
+  18%  { transform: translate(-50%, -65%) scale(1.10) rotate(0);     opacity: 1; }
+  32%  { transform: translate(-50%, -78%) scale(1.00) rotate(0);     opacity: 1; }
+  100% { transform: translate(-50%, -170%) scale(0.9) rotate(3deg);  opacity: 0; }
+}

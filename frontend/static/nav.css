@@ -1,0 +1,214 @@
+/* Shared top-nav + design tokens for all CET Agent pages.
+   Loaded by both the main chat (index.html) and the vocab frontend
+   (vocab-frontend/index.html). Keep class prefixes `cet-` so nothing
+   here collides with Tailwind, Element Plus, or app-scoped styles. */
+
+/* ---- Light (default) ---- */
+:root {
+  color-scheme: light;
+  --cet-brand: #059669;
+  --cet-brand-2: #10b981;
+  --cet-brand-fg: #ffffff;
+  --cet-brand-tint: #d1fae5;
+  --cet-brand-tint-2: #a7f3d0;
+  --cet-brand-deep: #047857;
+  --cet-ink: #111827;
+  --cet-text: #374151;
+  --cet-muted: #6b7280;
+  --cet-line: #e5e7eb;
+  --cet-surface: #ffffff;
+  --cet-surface-2: #f9fafb;
+  --cet-body-bg: #f9fafb;
+  --cet-card-bg: #ffffff;
+  --cet-card-border: #e5e7eb;
+  --cet-play-bg: #ffffff;
+  --cet-play-fg: #1f2937;
+  --cet-play-fg-dim: #cbd5e1;
+  --cet-play-fg-hit: #059669;
+  --cet-input-bg: #f9fafb;
+  --cet-input-border: #d1d5db;
+  --cet-input-text: #111827;
+  --cet-hint-bg: #fef3c7;
+  --cet-hint-fg: #92400e;
+  --cet-verdict-ok-bg: #ecfdf5;
+  --cet-verdict-ok-fg: #047857;
+  --cet-verdict-ok-border: #10b981;
+  --cet-verdict-bad-bg: #fef2f2;
+  --cet-verdict-bad-fg: #b91c1c;
+  --cet-verdict-bad-border: #ef4444;
+  --cet-font: 'Inter', system-ui, -apple-system, 'Segoe UI', 'PingFang SC',
+              'Microsoft YaHei', 'Helvetica Neue', Arial, sans-serif;
+  --cet-nav-h: 52px;
+}
+
+/* ---- Dark ---- */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --cet-brand: #34d399;
+  --cet-brand-2: #10b981;
+  --cet-brand-fg: #052e1c;
+  --cet-brand-tint: rgba(16, 185, 129, 0.15);
+  --cet-brand-tint-2: rgba(16, 185, 129, 0.3);
+  --cet-brand-deep: #a7f3d0;
+  --cet-ink: #f9fafb;
+  --cet-text: #e5e7eb;
+  --cet-muted: #9ca3af;
+  --cet-line: #334155;
+  --cet-surface: #1e293b;
+  --cet-surface-2: #111827;
+  --cet-body-bg: #0f172a;
+  --cet-card-bg: #1f2937;
+  --cet-card-border: #374151;
+  --cet-play-bg: #0f172a;
+  --cet-play-fg: #ffffff;
+  --cet-play-fg-dim: #4b5563;
+  --cet-play-fg-hit: #34d399;
+  --cet-input-bg: #111827;
+  --cet-input-border: #374151;
+  --cet-input-text: #f9fafb;
+  --cet-hint-bg: #374151;
+  --cet-hint-fg: #fbbf24;
+  --cet-verdict-ok-bg: rgba(16, 185, 129, 0.15);
+  --cet-verdict-ok-fg: #6ee7b7;
+  --cet-verdict-ok-border: #10b981;
+  --cet-verdict-bad-bg: rgba(239, 68, 68, 0.15);
+  --cet-verdict-bad-fg: #fca5a5;
+  --cet-verdict-bad-border: #ef4444;
+}
+
+.cet-topnav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  height: var(--cet-nav-h);
+  background: var(--cet-surface);
+  border-bottom: 1px solid var(--cet-line);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  font-family: var(--cet-font);
+  color: var(--cet-text);
+}
+
+/* Theme toggle button in nav */
+.cet-theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  background: transparent;
+  border: 1px solid var(--cet-line);
+  color: var(--cet-text);
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.12s, color 0.12s;
+}
+.cet-theme-toggle:hover {
+  background: var(--cet-surface-2);
+  color: var(--cet-brand);
+}
+
+.cet-topnav-inner {
+  max-width: 1120px;
+  height: 100%;
+  margin: 0 auto;
+  padding: 0 20px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.cet-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  color: var(--cet-brand);
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+.cet-brand-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  background: linear-gradient(135deg, var(--cet-brand-2), var(--cet-brand));
+  color: var(--cet-brand-fg);
+  font-weight: 800;
+  font-size: 13px;
+}
+
+.cet-nav-links {
+  display: flex;
+  gap: 2px;
+  margin-left: 8px;
+}
+.cet-nav-link {
+  padding: 6px 12px;
+  border-radius: 6px;
+  color: var(--cet-text);
+  text-decoration: none;
+  font-size: 13.5px;
+  font-weight: 500;
+  transition: background 0.12s, color 0.12s;
+}
+.cet-nav-link:hover {
+  background: var(--cet-surface-2);
+  color: var(--cet-brand);
+}
+.cet-nav-link.active {
+  background: var(--cet-brand-tint);
+  color: var(--cet-brand-deep);
+}
+
+.cet-nav-spacer { flex: 1; }
+
+.cet-nav-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.cet-level {
+  display: inline-flex;
+  border: 1px solid var(--cet-line);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--cet-surface);
+}
+.cet-level button,
+.cet-level .cet-level-btn {
+  background: transparent;
+  color: var(--cet-muted);
+  border: none;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+}
+.cet-level button.active,
+.cet-level .cet-level-btn.active {
+  background: var(--cet-brand);
+  color: var(--cet-brand-fg);
+}
+.cet-level button:not(.active):hover,
+.cet-level .cet-level-btn:not(.active):hover {
+  background: var(--cet-surface-2);
+  color: var(--cet-text);
+}
+
+.cet-mini-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--cet-muted);
+  cursor: pointer;
+  user-select: none;
+}
+.cet-mini-toggle input { accent-color: var(--cet-brand); }
