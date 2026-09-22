@@ -13,7 +13,7 @@ REM Open the browser 4s later in a hidden helper window, then run the server.
 REM start /b would keep the timer console visible; /min tucks it away.
 start "" /min cmd /c "timeout /t 4 /nobreak >NUL && start http://127.0.0.1:8000/"
 
-uv run python -m backend.main
+python -m backend.main
 
 REM If the server crashed before Ctrl+C, keep the window open so the user
 REM can read the traceback.

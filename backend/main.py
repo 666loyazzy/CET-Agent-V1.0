@@ -15,6 +15,7 @@ from backend.api.chat import router as chat_router
 from backend.api.embeddings import router as embeddings_router
 from backend.api.vocab import router as vocab_router
 from backend.api.vocab_data import router as vocab_data_router
+from backend.api.writing import router as writing_router
 from backend.config import PROJECT_ROOT, settings
 from backend.db import Base, engine
 from backend.db.seed import seed_if_needed
@@ -68,6 +69,7 @@ app.include_router(chat_router, prefix="/api")
 app.include_router(vocab_router, prefix="/api")
 app.include_router(vocab_data_router, prefix="/api")
 app.include_router(embeddings_router, prefix="/api")
+app.include_router(writing_router, prefix="/api")
 
 
 FRONTEND_DIR: Path = PROJECT_ROOT / "frontend"

@@ -11,6 +11,11 @@ const router = createRouter({
       alias: '/chat',
     },
     {
+      path: '/writing',
+      name: '作文',
+      component: () => import('../views/WritingView.vue')
+    },
+    {
       path: '/typing',
       name: '打字',
       component: HomeView,

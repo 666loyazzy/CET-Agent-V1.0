@@ -2,7 +2,7 @@
 import { ref, onMounted, watch } from 'vue'
 
 const props = defineProps<{
-  active: 'chat' | 'typing' | 'dictation' | 'progress'
+  active: 'chat' | 'writing' | 'typing' | 'dictation' | 'progress'
 }>()
 
 const emit = defineEmits<{
@@ -54,6 +54,7 @@ function toggleTheme() {
       </a>
       <div class="cet-nav-links">
         <a href="/vocab/#/" class="cet-nav-link" :class="{ active: props.active === 'chat' }">对话</a>
+        <a href="/vocab/#/writing" class="cet-nav-link" :class="{ active: props.active === 'writing' }">作文</a>
         <a href="/vocab/#/typing" class="cet-nav-link" :class="{ active: props.active === 'typing' }">打字</a>
         <a href="/vocab/#/dictation" class="cet-nav-link" :class="{ active: props.active === 'dictation' }">默写</a>
         <a href="/vocab/#/progress" class="cet-nav-link" :class="{ active: props.active === 'progress' }">进度</a>

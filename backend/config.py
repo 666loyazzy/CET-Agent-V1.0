@@ -22,6 +22,10 @@ class Settings(BaseSettings):
     openai_base_url: str = "https://api.openai.com/v1"
     openai_model: str = "gpt-4o"
 
+    writing_api_key: str = ""
+    writing_base_url: str = "https://api.deepseek.com"
+    writing_model: str = "deepseek-flash"
+
     judge_provider: str = ""
     judge_model: str = ""
     judge_openai_api_key: str = ""
