@@ -2,7 +2,7 @@ import pytest
 from pydantic import ValidationError
 
 from backend.writing.graph import build_writing_graph
-from backend.writing.schemas import EssayInput, score_band
+from backend.writing.schemas import EssayInput, EvidenceReport, score_band
 
 
 ESSAY = {
@@ -101,3 +101,18 @@ def test_only_supported_writing_models_are_accepted():
     assert EssayInput.model_validate(payload).model == "deepseek-v4-pro"
     with pytest.raises(ValidationError):
         EssayInput.model_validate({**payload, "model": "made-up-model"})
+
+
+def test_overlong_evidence_quote_is_truncated():
+    report = EvidenceReport.model_validate({
+        "agent": "language",
+        "findings": [{
+            "quote": "a" * 600,
+            "category": "grammar",
+            "polarity": "limits",
+            "severity": "minor",
+            "explanation": "The model returned too much context.",
+        }],
+        "summary": "Evidence checked.",
+    })
+    assert report.findings[0].quote == "a" * 500

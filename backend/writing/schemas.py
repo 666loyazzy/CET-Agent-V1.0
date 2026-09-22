@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 Level = Literal["CET-4", "CET-6"]
@@ -48,6 +48,13 @@ class Evidence(BaseModel):
     polarity: Literal["supports", "limits"]
     severity: Literal["minor", "major"]
     explanation: str = Field(min_length=1, max_length=1000)
+
+    @field_validator("quote", mode="before")
+    @classmethod
+    def truncate_overlong_quote(cls, value: object) -> object:
+        if isinstance(value, str) and len(value) > 500:
+            return value[:500]
+        return value
 
 
 class RaterResult(BaseModel):
