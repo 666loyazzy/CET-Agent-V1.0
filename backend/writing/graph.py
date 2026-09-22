@@ -131,6 +131,7 @@ def build_writing_graph(runner: WritingRunner | None = None):
             band=score_band(score),
             route="stable_fusion",
             summary="Blind rating paths agreed within the reliability thresholds.",
+            model=state["essay"]["model"],
             strengths=[item["explanation"] for item in evidence if item["polarity"] == "supports"][:3],
             priorities=[item["explanation"] for item in evidence if item["polarity"] == "limits"][:3],
             evidence=evidence,
@@ -143,6 +144,7 @@ def build_writing_graph(runner: WritingRunner | None = None):
             band=2,
             route="invalid",
             summary=" ".join(state["precheck"]["issues"]),
+            model=state["essay"]["model"],
         )
         return {"final_result": final.model_dump()}
 
@@ -188,7 +190,8 @@ def build_writing_graph(runner: WritingRunner | None = None):
             reports,
             state["critic"],
         )
-        return {"final_result": final}
+        final["model"] = state["essay"]["model"]
+        return {"final_result": FinalResult.model_validate(final).model_dump()}
 
     graph = StateGraph(WritingState)
     graph.add_node("precheck", _precheck)

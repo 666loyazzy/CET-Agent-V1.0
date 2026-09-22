@@ -1,7 +1,8 @@
 import pytest
+from pydantic import ValidationError
 
 from backend.writing.graph import build_writing_graph
-from backend.writing.schemas import score_band
+from backend.writing.schemas import EssayInput, score_band
 
 
 ESSAY = {
@@ -13,6 +14,7 @@ ESSAY = {
         "With clear rules, AI can improve access to useful feedback and help students learn independently."
     ),
     "level": "CET-4",
+    "model": "deepseek-flash",
 }
 
 
@@ -78,6 +80,7 @@ async def test_stable_path_skips_specialists():
         {"essay": ESSAY}, config={"configurable": {"thread_id": "stable-test"}}
     )
     assert result["final_result"]["route"] == "stable_fusion"
+    assert result["final_result"]["model"] == "deepseek-flash"
     assert "critic" not in result
 
 
@@ -90,3 +93,11 @@ async def test_disputed_path_adds_passes_and_adjudicates():
     assert len(result["strict_results"]) == 5
     assert len(result["lenient_results"]) == 5
     assert result["final_result"]["route"] == "chief_examiner"
+    assert result["final_result"]["model"] == "deepseek-flash"
+
+
+def test_only_supported_writing_models_are_accepted():
+    payload = {**ESSAY, "model": "deepseek-v4-pro"}
+    assert EssayInput.model_validate(payload).model == "deepseek-v4-pro"
+    with pytest.raises(ValidationError):
+        EssayInput.model_validate({**payload, "model": "made-up-model"})

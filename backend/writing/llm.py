@@ -23,14 +23,14 @@ class WritingRunner(Protocol):
 
 
 class DeepSeekWritingRunner:
-    def __init__(self) -> None:
+    def __init__(self, model: str | None = None) -> None:
         api_key = settings.writing_api_key
         self.api_key = api_key
         self.client = AsyncOpenAI(
             api_key=api_key or "missing",
             base_url=settings.writing_base_url,
         )
-        self.model = settings.writing_model
+        self.model = model or settings.writing_model
 
     async def _json(self, system: str, payload: dict, schema: type[T]) -> dict:
         if not self.api_key:

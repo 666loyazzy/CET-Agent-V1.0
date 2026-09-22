@@ -3,6 +3,8 @@ import { computed, onMounted, ref } from 'vue'
 import TopNav from '@/components/TopNav.vue'
 
 type Level = 'CET-4' | 'CET-6'
+type ModelId = 'deepseek-flash' | 'deepseek-v4-pro'
+type ModelOption = { id: ModelId; name: string; description: string }
 type Evidence = {
   quote: string
   category: string
@@ -14,12 +16,17 @@ type FinalResult = {
   band: number
   route: 'stable_fusion' | 'chief_examiner' | 'invalid'
   summary: string
+  model: ModelId
   strengths: string[]
   priorities: string[]
   evidence: Evidence[]
 }
 
 const level = ref<Level>('CET-4')
+const models = ref<ModelOption[]>([
+  { id: 'deepseek-flash', name: 'DeepSeek V4.1 Flash', description: '默认；适合并行多智能体评审' },
+])
+const model = ref<ModelId>('deepseek-flash')
 const topic = ref('')
 const essay = ref('')
 const running = ref(false)
@@ -27,6 +34,10 @@ const error = ref('')
 const result = ref<FinalResult | null>(null)
 const progress = ref<string[]>([])
 const wordCount = computed(() => essay.value.match(/[A-Za-z]+(?:'[A-Za-z]+)?/g)?.length ?? 0)
+const resultModelName = computed(() => {
+  const id = result.value?.model
+  return models.value.find((item) => item.id === id)?.name || id || ''
+})
 
 const NODE_LABELS: Record<string, string> = {
   precheck: '检查题目与字数',
@@ -45,13 +56,26 @@ const NODE_LABELS: Record<string, string> = {
   invalid: '作文不满足评分条件',
 }
 
-onMounted(() => {
+onMounted(async () => {
   const saved = localStorage.getItem('cet-agent-level')
   if (saved === 'CET-4' || saved === 'CET-6') level.value = saved
+  const savedModel = localStorage.getItem('cet-agent-writing-model')
+  try {
+    const response = await fetch('/api/writing/models')
+    if (!response.ok) return
+    const catalog = await response.json()
+    models.value = catalog.models
+    if (models.value.some((item) => item.id === savedModel)) model.value = savedModel as ModelId
+    else model.value = catalog.default
+  } catch {}
 })
 
 function onLevelChange(value: Level) {
   level.value = value
+}
+
+function onModelChange() {
+  localStorage.setItem('cet-agent-writing-model', model.value)
 }
 
 async function review() {
@@ -64,7 +88,12 @@ async function review() {
     const response = await fetch('/api/writing/review-stream', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ topic: topic.value.trim(), essay: essay.value.trim(), level: level.value }),
+      body: JSON.stringify({
+        topic: topic.value.trim(),
+        essay: essay.value.trim(),
+        level: level.value,
+        model: model.value,
+      }),
     })
     if (!response.ok || !response.body) throw new Error(`HTTP ${response.status}`)
     const reader = response.body.getReader()
@@ -115,6 +144,13 @@ function handleFrame(frame: string) {
 
       <section class="panel form-panel">
         <label>
+          <span>评审模型</span>
+          <select v-model="model" :disabled="running" @change="onModelChange">
+            <option v-for="item in models" :key="item.id" :value="item.id">{{ item.name }}</option>
+          </select>
+          <small>{{ models.find((item) => item.id === model)?.description }}</small>
+        </label>
+        <label>
           <span>作文题目</span>
           <textarea v-model="topic" rows="3" :disabled="running" placeholder="粘贴 CET-4 / CET-6 作文题目与要求"></textarea>
         </label>
@@ -123,7 +159,7 @@ function handleFrame(frame: string) {
           <textarea v-model="essay" rows="12" :disabled="running" placeholder="Paste your essay here..."></textarea>
         </label>
         <div class="form-foot">
-          <span>{{ level }} · {{ wordCount }} words</span>
+          <span>{{ level }} · {{ wordCount }} words · {{ models.find((item) => item.id === model)?.name }}</span>
           <button :disabled="running || !topic.trim() || !essay.trim()" @click="review">
             {{ running ? '多智能体评审中…' : '开始评审' }}
           </button>
@@ -143,6 +179,7 @@ function handleFrame(frame: string) {
         <div class="score">
           <strong>{{ result.score }}</strong><span>/ 15</span>
           <small>档位 {{ result.band }} · {{ result.route === 'chief_examiner' ? '主考官裁决' : result.route === 'invalid' ? '不可评分' : '一致性融合' }}</small>
+          <small>{{ resultModelName }}</small>
         </div>
         <div class="result-body">
           <p class="summary">{{ result.summary }}</p>
@@ -173,7 +210,9 @@ label { display: block; margin-bottom: 16px; }
 label span, h2, h3 { display: block; color: var(--cet-ink); font-weight: 600; }
 label span { margin-bottom: 7px; font-size: 13px; }
 textarea { width: 100%; box-sizing: border-box; resize: vertical; border: 1px solid var(--cet-input-border); border-radius: 7px; background: var(--cet-input-bg); color: var(--cet-input-text); padding: 10px 12px; font: 14px/1.6 var(--cet-font); outline: none; }
-textarea:focus { border-color: var(--cet-brand); box-shadow: 0 0 0 2px var(--cet-brand-tint); }
+select { min-width: 260px; border: 1px solid var(--cet-input-border); border-radius: 7px; background: var(--cet-input-bg); color: var(--cet-input-text); padding: 9px 11px; font: 14px var(--cet-font); outline: none; }
+label small { display: block; margin-top: 6px; color: var(--cet-muted); font-size: 11px; }
+textarea:focus, select:focus { border-color: var(--cet-brand); box-shadow: 0 0 0 2px var(--cet-brand-tint); }
 .form-foot { display: flex; align-items: center; justify-content: space-between; color: var(--cet-muted); font-size: 12px; }
 button { border: 0; border-radius: 7px; padding: 9px 20px; background: var(--cet-brand); color: var(--cet-brand-fg); font-weight: 600; cursor: pointer; }
 button:disabled { opacity: .5; cursor: not-allowed; }

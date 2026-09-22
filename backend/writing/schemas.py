@@ -7,6 +7,20 @@ from pydantic import BaseModel, Field, model_validator
 
 Level = Literal["CET-4", "CET-6"]
 RaterRole = Literal["strict", "lenient"]
+WritingModel = Literal["deepseek-flash", "deepseek-v4-pro"]
+
+WRITING_MODELS = [
+    {
+        "id": "deepseek-flash",
+        "name": "DeepSeek V4.1 Flash",
+        "description": "Fast default for parallel multi-agent review.",
+    },
+    {
+        "id": "deepseek-v4-pro",
+        "name": "DeepSeek V4 Pro",
+        "description": "Higher-cost option for more deliberate review.",
+    },
+]
 
 
 def score_band(score: int) -> int:
@@ -25,6 +39,7 @@ class EssayInput(BaseModel):
     topic: str = Field(min_length=1, max_length=4000)
     essay: str = Field(min_length=1, max_length=20000)
     level: Level
+    model: WritingModel = "deepseek-flash"
 
 
 class Evidence(BaseModel):
@@ -68,6 +83,7 @@ class FinalResult(BaseModel):
     band: int
     route: Literal["stable_fusion", "chief_examiner", "invalid"]
     summary: str
+    model: WritingModel = "deepseek-flash"
     strengths: list[str] = Field(default_factory=list)
     priorities: list[str] = Field(default_factory=list)
     evidence: list[Evidence] = Field(default_factory=list)
