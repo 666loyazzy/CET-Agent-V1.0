@@ -1,4 +1,11 @@
 .env
+.env.*
+!.env.example
+.speech-venv/
+.npm-cache/
+.uv-cache/
+playwright-report/
+test-results/
 .venv/
 venv/
 __pycache__/

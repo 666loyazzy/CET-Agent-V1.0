@@ -26,6 +26,10 @@ class Settings(BaseSettings):
     writing_base_url: str = "https://api.deepseek.com"
     writing_model: str = "deepseek-flash"
 
+    speaking_service_url: str = "http://127.0.0.1:8001"
+    speaking_api_key: str = ""
+    speaking_base_url: str = ""
+
     judge_provider: str = ""
     judge_model: str = ""
     judge_openai_api_key: str = ""

@@ -1,0 +1,30 @@
+services:
+  cet:
+    build:
+      context: .
+      dockerfile: Dockerfile.cet
+    ports:
+      - "127.0.0.1:8000:8000"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      SPEAKING_SERVICE_URL: http://acoustics:8001
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
+    depends_on:
+      acoustics:
+        condition: service_healthy
+  acoustics:
+    build:
+      context: .
+      dockerfile: speech_service/Dockerfile
+    expose:
+      - "8001"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/health', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped

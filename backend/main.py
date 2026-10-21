@@ -16,6 +16,7 @@ from backend.api.embeddings import router as embeddings_router
 from backend.api.vocab import router as vocab_router
 from backend.api.vocab_data import router as vocab_data_router
 from backend.api.writing import router as writing_router
+from backend.api.speaking import initialize as initialize_speaking, router as speaking_router
 from backend.config import PROJECT_ROOT, settings
 from backend.db import Base, engine
 from backend.db.seed import seed_if_needed
@@ -43,6 +44,7 @@ async def _ensure_vec_virtual_table() -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings.data_dir.mkdir(parents=True, exist_ok=True)
+    initialize_speaking()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     await _ensure_vec_virtual_table()
@@ -70,6 +72,7 @@ app.include_router(vocab_router, prefix="/api")
 app.include_router(vocab_data_router, prefix="/api")
 app.include_router(embeddings_router, prefix="/api")
 app.include_router(writing_router, prefix="/api")
+app.include_router(speaking_router, prefix="/api")
 
 
 FRONTEND_DIR: Path = PROJECT_ROOT / "frontend"

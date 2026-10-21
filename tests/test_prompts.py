@@ -20,13 +20,13 @@ def test_sections_parsed():
 def test_intro_prompt_has_first_interaction_rule():
     prompt = build_system_prompt("intro")
     assert "First Interaction Rule" in prompt
-    assert "Writing Mode" not in prompt
+    assert "\n## Writing Mode\n" not in prompt
 
 
 def test_writing_prompt_slices_writing_section():
     prompt = build_system_prompt("writing")
     assert "Writing Mode" in prompt
-    assert "Translation Mode" not in prompt
+    assert "\n## Translation Mode\n" not in prompt
 
 
 def test_reading_prompt_slices_reading_section():

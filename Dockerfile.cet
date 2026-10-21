@@ -1,0 +1,21 @@
+FROM node:22-alpine AS frontend
+WORKDIR /src/vocab-frontend
+COPY vocab-frontend/package*.json ./
+RUN npm ci --no-audit --no-fund
+COPY vocab-frontend/ ./
+RUN npm run build
+
+FROM python:3.11-slim
+WORKDIR /app
+RUN pip install --no-cache-dir uv
+COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen --no-dev
+COPY backend/ backend/
+COPY skill/ skill/
+COPY frontend/static/ frontend/static/
+COPY speech_service/__init__.py speech_service/catalog.py speech_service/
+COPY speech_service/samples/ speech_service/samples/
+COPY --from=frontend /src/frontend/vocab/ frontend/vocab/
+ENV PATH="/app/.venv/bin:$PATH"
+EXPOSE 8000
+CMD ["python", "-m", "uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]

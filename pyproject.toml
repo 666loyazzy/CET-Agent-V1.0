@@ -17,10 +17,11 @@ dependencies = [
     "openai>=1.54",
     "httpx>=0.27",
     "brotlicffi>=1.2.0.2",
-    "sqlalchemy>=2.0",
+    "sqlalchemy[asyncio]>=2.0",
     "aiosqlite>=0.20",
     "sqlite-vec>=0.1.6",
     "langgraph>=0.6",
+    "python-multipart>=0.0.20",
 ]
 
 [project.optional-dependencies]
@@ -32,6 +33,12 @@ dev = [
 
 [tool.uv]
 package = false
+
+[tool.setuptools.packages.find]
+include = ["backend*", "speech_service*"]
+
+[tool.setuptools.package-data]
+speech_service = ["samples/*.wav"]
 
 [tool.ruff]
 line-length = 100

@@ -16,6 +16,12 @@ const router = createRouter({
       component: () => import('../views/WritingView.vue')
     },
     {
+      path: '/pronunciation',
+      alias: '/speaking',
+      name: '英语发音训练',
+      component: () => import('../views/PronunciationView.vue')
+    },
+    {
       path: '/typing',
       name: '打字',
       component: HomeView,

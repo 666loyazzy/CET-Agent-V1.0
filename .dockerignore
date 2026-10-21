@@ -1,0 +1,17 @@
+.git
+.env
+.env.*
+.venv
+.speech-venv
+.npm-cache
+.uv-cache
+**/node_modules
+frontend/vocab
+data
+backups
+test-results
+playwright-report
+**/__pycache__
+.pytest_cache
+.ruff_cache
+*.egg-info

@@ -212,3 +212,11 @@
   user-select: none;
 }
 .cet-mini-toggle input { accent-color: var(--cet-brand); }
+
+@media (max-width: 760px) {
+  .cet-topnav-inner { flex-wrap: wrap; gap: 8px; }
+  .cet-nav-links { order: 3; width: 100%; overflow-x: auto; white-space: nowrap; padding-bottom: 5px; }
+  .cet-nav-link { flex-shrink: 0; }
+  .cet-nav-right { margin-left: auto; }
+  .cet-nav-spacer { display: none; }
+}
