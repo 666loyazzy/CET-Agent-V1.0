@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
 
 export type Step = {
   id: string
@@ -7,6 +7,7 @@ export type Step = {
   started_at: number
   finished_at?: number
   skill_version?: string
+  message?: string
 }
 const props = defineProps<{ trace: Step[]; busy?: boolean; teaching?: boolean }>()
 const stages = computed(() =>
@@ -30,7 +31,46 @@ const stages = computed(() =>
         ['memory.update', '保存练习与记忆']
       ]
 )
-const completed = computed(() => props.trace.filter((s) => s.status === 'completed').length)
+const completed = computed(
+  () => props.trace.filter((s) => ['completed', 'warning'].includes(s.status)).length
+)
+const diagram = ref<HTMLElement | null>(null)
+const connections = ref<{ d: string; status: string }[]>([])
+const diagramSize = ref('0 0 1 1')
+const marker = computed(() => (props.teaching ? 'coach-edge-arrow' : 'analysis-edge-arrow'))
+let observer: ResizeObserver | undefined
+async function drawConnections() {
+  await nextTick()
+  if (!diagram.value) return
+  const bounds = diagram.value.getBoundingClientRect()
+  if (!bounds.width) return
+  const nodes = [...diagram.value.querySelectorAll('li')].map((node) =>
+    node.getBoundingClientRect()
+  )
+  diagramSize.value = `0 0 ${bounds.width} ${bounds.height}`
+  connections.value = nodes.slice(0, -1).map((node, i) => {
+    const next = nodes[i + 1]
+    const x1 = node.right - bounds.left,
+      y1 = (node.top + node.bottom) / 2 - bounds.top
+    const x2 = next.left - bounds.left,
+      y2 = (next.top + next.bottom) / 2 - bounds.top
+    const middle = (node.bottom + next.top) / 2 - bounds.top
+    return {
+      d:
+        Math.abs(y1 - y2) < 5
+          ? `M${x1},${y1}L${x2},${y2}`
+          : `M${x1},${y1}H${x1 + 6}V${middle}H${x2 - 6}V${y2}H${x2}`,
+      status: step(stages.value[i][0])?.status || 'pending'
+    }
+  })
+}
+onMounted(() => {
+  observer = new ResizeObserver(drawConnections)
+  if (diagram.value) observer.observe(diagram.value)
+  drawConnections()
+})
+watch(() => props.trace, drawConnections, { deep: true })
+onBeforeUnmount(() => observer?.disconnect())
 function step(id: string) {
   return props.trace.find((s) => s.id === id)
 }
@@ -51,43 +91,61 @@ function duration(id: string) {
         <span class="flow-kicker">{{ teaching ? 'COACH AGENT' : 'ANALYSIS HARNESS' }}</span>
         <h3>{{ teaching ? '教学智能体工作进度' : '声学分析工作进度' }}</h3>
       </div>
-      <span class="flow-count">{{ completed }} / {{ stages.length }} 已完成</span>
+      <span class="flow-count">{{ completed }} / {{ stages.length }} 已处理</span>
     </div>
-    <ol class="flow-grid">
-      <li
-        v-for="([id, label], index) in stages"
-        :key="id"
-        :class="step(id)?.status || 'pending'"
-        :data-stage="id"
-      >
-        <span class="node-icon">{{
-          step(id)?.status === 'completed'
-            ? '✓'
-            : step(id)?.status === 'failed'
-              ? '!'
-              : String(index + 1).padStart(2, '0')
-        }}</span>
-        <div class="node-text">
-          <strong>{{ label }}</strong
-          ><small
-            >{{ duration(id)
-            }}<span v-if="step(id)?.skill_version">
-              · {{ step(id)?.skill_version?.slice(0, 6) }}</span
-            ></small
-          >
-        </div>
-        <span class="flow-arrow" aria-hidden="true">→</span>
-      </li>
-    </ol>
+    <div ref="diagram" class="flow-diagram">
+      <svg class="connections" :viewBox="diagramSize" aria-hidden="true">
+        <defs>
+          <marker :id="marker" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+            <path d="M0,0L6,3L0,6" fill="currentColor" />
+          </marker>
+        </defs>
+        <path
+          v-for="(edge, i) in connections"
+          :key="i"
+          :d="edge.d"
+          :class="edge.status"
+          :marker-end="`url(#${marker})`"
+        />
+      </svg>
+      <ol class="flow-grid">
+        <li
+          v-for="([id, label], index) in stages"
+          :key="id"
+          :class="step(id)?.status || 'pending'"
+          :data-stage="id"
+        >
+          <span class="node-icon">{{
+            step(id)?.status === 'completed'
+              ? '✓'
+              : ['failed', 'warning'].includes(step(id)?.status || '')
+                ? '!'
+                : String(index + 1).padStart(2, '0')
+          }}</span>
+          <div class="node-text">
+            <strong>{{ label }}</strong
+            ><small
+              >{{ duration(id)
+              }}<span v-if="step(id)?.skill_version">
+                · {{ step(id)?.skill_version?.slice(0, 6) }}</span
+              ></small
+            >
+            <small v-if="step(id)?.message" class="step-message">{{ step(id)?.message }}</small>
+          </div>
+        </li>
+      </ol>
+    </div>
     <p>
       {{
         trace.some((s) => s.status === 'failed')
           ? '失败步骤已保留，下游步骤停止执行。'
-          : busy
-            ? '显示后台实际执行状态。分析期间可以回听录音。'
-            : trace.length
-              ? '每一步均记录实际开始、结束时间；记录随练习保存。'
-              : '提交后逐步显示实际状态、耗时与完成结果。'
+          : trace.some((s) => s.status === 'warning')
+            ? '黄色节点表示局部受限：实测图表已保留，对齐相关判断暂缓。'
+            : busy
+              ? '显示后台实际执行状态。分析期间可以回听录音。'
+              : trace.length
+                ? '每一步均记录实际开始、结束时间；记录随练习保存。'
+                : '提交后逐步显示实际状态、耗时与完成结果。'
       }}
     </p>
   </section>
@@ -127,6 +185,32 @@ h3 {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 13px 26px;
 }
+.flow-diagram {
+  position: relative;
+}
+.connections {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+  color: var(--cet-muted);
+}
+.connections > path {
+  fill: none;
+  stroke: var(--cet-line);
+  stroke-width: 1.4;
+}
+.connections > path.completed {
+  stroke: #359d80;
+}
+.connections > path.warning {
+  stroke: #d69a3a;
+}
+.step-message {
+  line-height: 1.7;
+}
 .flow-grid li {
   position: relative;
   display: flex;
@@ -162,15 +246,12 @@ small {
   font-size: 10px;
   color: var(--cet-muted);
 }
-.flow-arrow {
-  position: absolute;
-  right: -22px;
-  color: var(--cet-muted);
-  font-size: 18px;
+.warning {
+  border-color: #d69a3a !important;
 }
-.flow-grid li:nth-child(3n) .flow-arrow,
-.flow-grid li:last-child .flow-arrow {
-  display: none;
+.warning .node-icon {
+  background: #fff1cf;
+  color: #8d5a08;
 }
 .completed {
   background: #ecfdf51a;
@@ -219,9 +300,6 @@ p {
   .flow-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
-  }
-  .flow-arrow {
-    display: none;
   }
   .flow-grid li {
     padding: 10px 7px;

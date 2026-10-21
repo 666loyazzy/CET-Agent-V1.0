@@ -8,4 +8,5 @@ RMS in dBFS is relative digital energy, not calibrated acoustic loudness. Stress
 F0 gaps at unvoiced consonants are normal. Do not infer problems from gaps alone.
 Synthetic references and heuristic target checks support practice, not official CET scoring.
 Explain uncertainty when a supplied metric says uncertain, and recommend listening or rerecording.
+If alignment is unavailable, explain the retained acoustic observations only. Ask for a complete reading and selection check; never name a supposed mispronounced or omitted word, assign stress, or claim a phrase pause from unaligned audio.
 Use only the provided memories; do not infer permanent ability from a single recording.

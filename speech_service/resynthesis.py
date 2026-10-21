@@ -15,6 +15,8 @@ def synthesize(data: bytes, result: dict) -> bytes:
     reference = result.get("reference", {}).get("result")
     if not reference or result["quality"]["octave_jumps"]:
         raise AudioError("请先完成有可用参照且无倍频跳变的分析。")
+    if not result["words"] or not reference["words"]:
+        raise AudioError("词语定位不足，暂不能生成按词语对应的语调调整试听。")
     samples = decode(data)
     selected = result["selection"]
     algorithm = result["algorithm"]

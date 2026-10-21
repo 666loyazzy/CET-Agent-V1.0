@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import TopNav from '@/components/TopNav.vue'
 import ProsodyChart from '@/components/ProsodyChart.vue'
+import PronunciationDashboard from '@/components/PronunciationDashboard.vue'
 import AgentWorkflow, { type Step } from '@/components/AgentWorkflow.vue'
 import { usePronunciationRecorder } from '@/composables/usePronunciationRecorder'
 import { speechApi, type Exercise, type Practice, type Memory } from '@/api/pronunciation'
@@ -227,6 +228,7 @@ async function openPractice(item: Practice) {
   try {
     current.value = await speechApi<Practice>(`/practices/${item.id}`)
     tab.value = 'practice'
+    error.value = current.value.error || ''
     const messages = await speechApi<{ answer: string; source: string; trace: Step[] }[]>(
       `/practices/${item.id}/coaching`
     )
@@ -235,6 +237,17 @@ async function openPractice(item: Practice) {
       coachSource.value = messages[0].source === 'local' ? '本地实测建议' : '模型教学建议'
       coachTrace.value = messages[0].trace
     }
+  } catch (caught) {
+    error.value = (caught as Error).message
+  }
+}
+async function restoreRecording() {
+  if (!current.value || locked.value) return
+  try {
+    const response = await fetch(current.value.audio_url, { credentials: 'same-origin' })
+    if (!response.ok) throw new Error('原录音读取失败，可能已超过保留期。')
+    receiveRecording(await response.blob(), '历史录音 · 请重新确认题目与选区')
+    notice.value = '原录音已载入。请回听、确认当前题目与选区后重新分析；不会覆盖原记录。'
   } catch (caught) {
     error.value = (caught as Error).message
   }
@@ -692,7 +705,23 @@ onBeforeUnmount(() => {
         <div v-if="busy" class="waiting-message" role="status">
           后台正在执行真实分析，已等待 {{ waited }} 秒。刷新后可恢复任务。
         </div>
+        <section v-if="current?.status === 'failed'" class="evidence-panel">
+          <h3>原录音仍然保留</h3>
+          <p>{{ current.error }}</p>
+          <audio :src="current.audio_url" controls preload="none" aria-label="失败练习原录音" />
+          <button class="secondary" :disabled="locked" @click="restoreRecording">
+            载入原录音重新分析
+          </button>
+        </section>
         <template v-if="result && current">
+          <section
+            v-if="result.alignment && result.alignment.status !== 'aligned'"
+            class="alignment-warning"
+            role="status"
+          >
+            <strong>声学图表已保留 · 专项判断受限</strong>
+            <p>{{ result.alignment.message }}</p>
+          </section>
           <section class="result-overview">
             <div class="section-title">
               <div>
@@ -733,7 +762,13 @@ onBeforeUnmount(() => {
                 }}<audio :src="result.reference.audio_url" controls preload="none"
               /></label>
             </div>
-            <button class="text-button" @click="makeReference">将这次录音设为个人参照</button>
+            <button
+              class="text-button"
+              :disabled="result.alignment?.status === 'unavailable'"
+              @click="makeReference"
+            >
+              将这次录音设为个人参照
+            </button>
           </section>
           <section class="comparison-picker">
             <label
@@ -758,12 +793,20 @@ onBeforeUnmount(() => {
             :comparison-label="comparison ? '历史复练录音' : undefined"
             @seek="seek"
           />
+          <PronunciationDashboard
+            :key="current.id"
+            :result="result"
+            :practice="current"
+            :history="history"
+            :previous="comparison?.result"
+            :tip="selected?.tip || ''"
+          />
           <section v-if="result.reference" class="syllable-panel">
             <div class="section-title">
               <h3>听听语调调整后的自己</h3>
               <button
                 class="secondary"
-                :disabled="altering || result.quality.octave_jumps > 0"
+                :disabled="altering || result.quality.octave_jumps > 0 || !result.words.length"
                 @click="alteredSample"
               >
                 {{ altering ? '正在生成…' : '生成语调调整试听' }}
@@ -771,6 +814,9 @@ onBeforeUnmount(() => {
             </div>
             <p class="quiet">
               使用本人录音，按参照调整音高。原节奏、发音动作和音量保持原样，作为教学试听。
+              <span v-if="!result.words.length"
+                >请先取得词语定位，才能生成对应片段的语调试听。</span
+              >
             </p>
             <audio
               v-if="alteredUrl"
@@ -904,6 +950,17 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
+.alignment-warning {
+  padding: 18px 22px;
+  border: 1px solid #d69a3a;
+  border-radius: 14px;
+  background: #d69a3a0d;
+  font-size: 13px;
+  line-height: 1.9;
+}
+.alignment-warning strong {
+  color: #a56c15;
+}
 .pronunciation-page {
   max-width: 1280px;
   margin: auto;

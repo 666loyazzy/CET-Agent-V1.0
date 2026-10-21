@@ -31,6 +31,7 @@ from openai import AsyncOpenAI
 from pydantic import BaseModel, Field
 
 from backend.config import PROJECT_ROOT, settings
+from backend.speaking_visuals import chart_evidence
 from speech_service.catalog import BY_ID, EXERCISES, VERSION
 
 router = APIRouter(prefix="/speaking", tags=["speaking"])
@@ -112,6 +113,17 @@ def practice(practice_id: str, user: str) -> dict:
 
 def unpack(row: dict) -> dict:
     result = json.loads(row["result"]) if row.get("result") else None
+    observations = None
+    if result and "chart" in result:
+        result["visuals"] = chart_evidence(result)
+        observations = {
+            "comparison_key": result.get("comparison_key"),
+            "contour_mae_st": result["visuals"]["contour_mae_st"],
+            "coverage_percent": result["visuals"]["coverage_percent"],
+            "pitch_range_st": result.get("features", {}).get("pitch_range_st"),
+            "duration_s": result.get("selection", {}).get("end_s", 0)
+            - result.get("selection", {}).get("start_s", 0),
+        }
     return {
         "id": row["id"],
         "exercise_id": row["exercise"],
@@ -122,6 +134,7 @@ def unpack(row: dict) -> dict:
         "error": row.get("error"),
         "audio_url": f"/api/speaking/practices/{row['id']}/audio",
         "is_reference": bool(row["is_reference"]),
+        "observations": observations,
     }
 
 
@@ -253,6 +266,8 @@ async def run_analysis(practice_id: str, user: str, options: dict, reference_id:
                 reference.pop("reference", None)
                 if reference["algorithm"] != result["algorithm"]:
                     raise HTTPException(422, "参照音的音高参数不同，请使用相同参数重新上传。")
+                if reference.get("alignment", {}).get("status") == "unavailable":
+                    raise HTTPException(422, "参照音的词语定位不足，请选择完整跟读的参照录音。")
                 reference_key = reference_id
                 result["reference"] = {
                     "label": "本人上传的参照音",
@@ -263,7 +278,11 @@ async def run_analysis(practice_id: str, user: str, options: dict, reference_id:
             result["comparison_key"] = hashlib.sha256(
                 json.dumps(key, sort_keys=True).encode()
             ).hexdigest()[:20]
-            result["summary"] = BY_ID[row["exercise"]]["tip"]
+            result["summary"] = (
+                "词语定位未完成，已保留真实声学观测；请完整跟读当前题目后复测。"
+                if result.get("alignment", {}).get("status") == "unavailable"
+                else BY_ID[row["exercise"]]["tip"]
+            )
             result["trace"][-1].update(status="completed", finished_at=time.time())
             result["trace"].append(
                 {
@@ -411,6 +430,8 @@ def use_as_reference(practice_id: str, user: str = Depends(owner)):
     row = practice(practice_id, user)
     if row["status"] != "completed":
         raise HTTPException(422, "分析成功的录音才可用作参照。")
+    if json.loads(row["result"]).get("alignment", {}).get("status") == "unavailable":
+        raise HTTPException(422, "词语未能完整定位，请重新跟读分析后再设为参照。")
     with database() as db:
         db.execute(
             "UPDATE practices SET is_reference=1 WHERE id=? AND owner=?", (practice_id, user)
@@ -505,6 +526,7 @@ async def coaching_events(practice_id: str, body: TutorInput, user: str):
         "exercise": BY_ID[row["exercise"]],
         "metrics": result["metrics"],
         "quality": result["quality"],
+        "alignment": result.get("alignment"),
         "findings": result["findings"],
         "memory": memory(user),
         "question": body.question,

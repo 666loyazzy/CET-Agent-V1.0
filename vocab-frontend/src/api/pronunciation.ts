@@ -32,6 +32,7 @@ export type Measurement = {
   summary: string
   selection: { start_s: number; end_s: number }
   quality: { warnings: string[]; valid_frames: number; total_frames: number; octave_jumps: number }
+  alignment?: { status: string; message: string }
   words: { text: string; start_s: number; end_s: number }[]
   syllables: {
     label: string
@@ -53,7 +54,21 @@ export type Measurement = {
     median_f0_hz: number
     pitch_range_st: number
     ending_delta_st: number | null
-    word_rate_per_minute: number
+    word_rate_per_minute: number | null
+  }
+  visuals?: {
+    coverage_percent: number
+    contour_mae_st: number | null
+    paired_bins: number
+    comparison_note: string
+    regions: {
+      label: string
+      median_f0_hz: number | null
+      valid_frames: number
+      total_frames: number
+    }[]
+    deviations: { label: string; value: number | null; paired_bins: number }[]
+    dimensions: { label: string; unit: string; value: number | null; reference: number | null }[]
   }
   trace: { id: string; status: string; started_at: number; finished_at: number }[]
   reference?: { label: string; result: Measurement; audio_url: string }
@@ -68,6 +83,13 @@ export type Practice = {
   error?: string
   audio_url: string
   is_reference: boolean
+  observations?: {
+    comparison_key: string
+    contour_mae_st: number | null
+    coverage_percent: number
+    pitch_range_st: number | null
+    duration_s: number
+  }
 }
 export type Memory = {
   enabled: boolean

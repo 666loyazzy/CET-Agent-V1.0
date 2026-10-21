@@ -11,7 +11,8 @@ pytest.importorskip("pocketsphinx")
 
 from speech_service.app import app
 from speech_service.catalog import EXERCISES
-from speech_service.engine import AudioError, analyze
+from speech_service.engine import AudioError, AlignmentError, analyze
+from speech_service import engine
 
 SAMPLES = Path(__file__).resolve().parents[1] / "speech_service" / "samples"
 
@@ -76,6 +77,83 @@ def test_stream_failure_stops_before_later_stages():
         assert "event: error" in response.text
         assert "event: result" not in response.text
         assert "prosody.assess" not in response.text
+
+
+def test_empty_decoder_segments_is_an_alignment_error(monkeypatch):
+    class EmptyDecoder:
+        def __init__(self, **kwargs):
+            pass
+
+        def set_align_text(self, text):
+            pass
+
+        def start_utt(self):
+            pass
+
+        def process_raw(self, raw, **kwargs):
+            pass
+
+        def end_utt(self):
+            pass
+
+        def seg(self):
+            return None
+
+    monkeypatch.setattr(engine, "Decoder", EmptyDecoder)
+    with pytest.raises(AlignmentError, match="未能定位"):
+        engine.align(np.zeros(16000), EXERCISES[-1], 0)
+
+
+@pytest.mark.parametrize("exercise", [EXERCISES[i] for i in (0, 4, 7, 10)], ids=lambda e: e["id"])
+def test_alignment_failure_retains_charts_without_inventing_word_judgements(monkeypatch, exercise):
+    def unavailable(*args):
+        raise AlignmentError("No matching grammar.")
+
+    monkeypatch.setattr(engine, "align", unavailable)
+    result = analyze((SAMPLES / f"{exercise['id']}.wav").read_bytes(), exercise)
+    assert result["alignment"]["status"] == "unavailable"
+    assert result["chart"]["f0_hz"] and result["chart"]["waveform"]
+    assert result["words"] == result["syllables"] == []
+    assert result["features"]["word_rate_per_minute"] is None
+    assert result["features"]["ending_delta_st"] is None
+    assert all(m["state"] == "uncertain" and m["value"] is None for m in result["metrics"])
+    assert result["trace"][3]["status"] == "warning"
+    assert result["trace"][-1]["status"] == "completed"
+
+
+def test_stream_alignment_warning_still_emits_chart_result(monkeypatch):
+    monkeypatch.setattr(engine, "align", lambda *args: [])
+    with TestClient(app) as client:
+        response = client.post(
+            "/analyze-stream",
+            data={"exercise_id": "present-noun"},
+            files={"file": ("audio.wav", (SAMPLES / "present-noun.wav").read_bytes())},
+        )
+    assert "event: result" in response.text and '"status": "warning"' in response.text
+    assert "event: error" not in response.text
+
+
+def test_phone_alignment_failure_keeps_word_boundaries(monkeypatch):
+    decoder_type = engine.Decoder
+
+    class WordOnlyDecoder:
+        def __init__(self, **kwargs):
+            self.decoder = decoder_type(**kwargs)
+
+        def __getattr__(self, name):
+            return getattr(self.decoder, name)
+
+        def set_alignment(self):
+            raise RuntimeError("Phone pass unavailable.")
+
+    monkeypatch.setattr(engine, "Decoder", WordOnlyDecoder)
+    result = analyze((SAMPLES / "present-noun.wav").read_bytes(), EXERCISES[0])
+    assert result["alignment"]["status"] == "words_only"
+    assert result["words"][0]["text"] == "present"
+    assert result["words"][0]["end_s"] > result["words"][0]["start_s"]
+    assert result["syllables"] == []
+    assert result["metrics"][0]["state"] == "uncertain"
+    assert result["trace"][3]["status"] == "warning"
 
 
 @pytest.mark.parametrize("exercise", [EXERCISES[0], EXERCISES[4]], ids=lambda e: e["id"])

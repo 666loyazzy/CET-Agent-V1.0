@@ -36,6 +36,10 @@ class AudioError(ValueError):
     pass
 
 
+class AlignmentError(AudioError):
+    pass
+
+
 def decode(data: bytes) -> np.ndarray:
     with tempfile.TemporaryDirectory(prefix="cet-speech-") as folder:
         source, output = Path(folder) / "source.audio", Path(folder) / "audio.wav"
@@ -91,15 +95,26 @@ def align(samples: np.ndarray, exercise: dict, offset: float) -> list[dict]:
     decoder.set_align_text(" ".join(tokens))
     raw = np.clip(samples * 32767, -32768, 32767).astype("<i2").tobytes()
     phone_level = exercise["kind"] == "word_stress"
-    for subwords in (False, True) if phone_level else (False,):
-        if subwords:
+    decoder.start_utt()
+    decoder.process_raw(raw, full_utt=True)
+    decoder.end_utt()
+    segments = decoder.seg()
+    if segments is None:
+        raise AlignmentError("未能定位完整题目，请回听是否读完当前文本，或调整选区后重录。")
+    alignment = list(segments)
+    if phone_level:
+        try:
             decoder.set_alignment()
-        decoder.start_utt()
-        decoder.process_raw(raw, full_utt=True)
-        decoder.end_utt()
-    alignment = decoder.get_alignment() if phone_level else list(decoder.seg())
-    if alignment is None:
-        raise AudioError("未能定位词语，请按题目完整跟读，或手动调整选区。")
+            decoder.start_utt()
+            decoder.process_raw(raw, full_utt=True)
+            decoder.end_utt()
+            phones = decoder.get_alignment()
+        except RuntimeError:
+            phones = None
+        if phones is not None:
+            alignment = phones
+        else:
+            phone_level = False
     words = []
     for word in alignment:
         name = word.name if phone_level else word.word
@@ -124,7 +139,7 @@ def align(samples: np.ndarray, exercise: dict, offset: float) -> list[dict]:
                 }
             )
     if len(words) != len(tokens) or any(w["end_s"] - w["start_s"] < 0.03 for w in words):
-        raise AudioError("词语定位不完整，请回听确认读完全部文本，再调整选区或重录。")
+        raise AlignmentError("词语定位不完整，请回听确认读完全部文本，再调整选区或重录。")
     return words
 
 
@@ -141,7 +156,11 @@ def _measure_interval(samples, times, pitch, start, end, offset):
 
 
 def assess(
-    exercise: dict, words: list[dict], syllables: list[dict], ending: float | None
+    exercise: dict,
+    words: list[dict],
+    syllables: list[dict],
+    ending: float | None,
+    selection: tuple[float, float] = (0, 0),
 ) -> tuple[list[dict], list[dict]]:
     metrics, findings = [], []
 
@@ -167,7 +186,18 @@ def assess(
             }
         )
 
-    if exercise["kind"] == "word_stress":
+    if not words:
+        add(
+            exercise["kind"],
+            "专项判断",
+            "uncertain",
+            None,
+            "",
+            "词语定位未完成，仅保留真实声学图表；不判断重音、语义收尾或意群停顿。",
+            *selection,
+        )
+        findings[-1]["suggestion"] = "先按当前题目完整跟读，回听确认后重新选择完整发音区间。"
+    elif exercise["kind"] == "word_stress":
         expected = len(exercise["syllables"])
         if len(syllables) != expected or any(s["duration_s"] < 0.035 for s in syllables):
             add(
@@ -304,7 +334,8 @@ def analyze(
             entry.update(status="failed", finished_at=time.time())
             publish()
             raise
-        entry.update(status="completed", finished_at=time.time())
+        entry.update(status=entry.get("outcome", "completed"), finished_at=time.time())
+        entry.pop("outcome", None)
         publish()
         return result
 
@@ -349,11 +380,33 @@ def analyze(
             raise AudioError("有效音高不足，请检查录音、选区和音高范围后重试。")
         return pitch
 
+    alignment = {"status": "aligned", "message": "固定文本的近似词语定位，不是内容识别或音素评分。"}
+
+    def locate():
+        try:
+            located = align(selected, exercise, start)
+        except (AlignmentError, RuntimeError):
+            located = []
+        if not located:
+            alignment.update(
+                status="unavailable",
+                message=f"本次选区 {end - start:.2f} 秒，未能定位完整题目。请确认读完当前文本，或调整选区后重录；已保留波形、音高和音量图。",
+            )
+        elif exercise["kind"] == "word_stress" and not located[0]["phones"]:
+            alignment.update(
+                status="words_only",
+                message="词语已定位，但元音核定位不足；音节重音暂不判断，声学图表仍可查看。",
+            )
+        if alignment["status"] != "aligned":
+            trace[-1].update(outcome="warning", message=alignment["message"])
+            quality["warnings"].append(alignment["message"])
+        return located
+
     with LOCK:
         pitch = stage("praat.extract", extract_pitch)
         times = pitch.xs() + start
         values = pitch.selected_array["frequency"].copy()
-        words = stage("text.align", lambda: align(selected, exercise, start))
+        words = stage("text.align", locate)
 
     def features():
         for word in words:
@@ -361,7 +414,7 @@ def analyze(
                 _measure_interval(selected, times, values, word["start_s"], word["end_s"], start)
             )
         syllables = []
-        if exercise["kind"] == "word_stress":
+        if exercise["kind"] == "word_stress" and words:
             for phone in words[0]["phones"]:
                 if re.sub(r"\d", "", phone["phone"]) in VOWELS:
                     i = len(syllables)
@@ -383,14 +436,16 @@ def analyze(
     center = float(np.median(values[voiced]))
     relative = np.full(len(values), np.nan)
     relative[voiced] = 12 * np.log2(values[voiced] / center)
-    terminal = values[(times >= max(words[-1]["start_s"], end - 0.8)) & voiced]
+    terminal = values[(times >= max(words[-1]["start_s"], end - 0.8)) & voiced] if words else []
     delta = None
     if len(terminal) >= 6:
         count = max(2, len(terminal) // 4)
         delta = round(
             float(12 * np.log2(np.median(terminal[-count:]) / np.median(terminal[:count]))), 2
         )
-    metrics, findings = stage("prosody.assess", lambda: assess(exercise, words, syllables, delta))
+    metrics, findings = stage(
+        "prosody.assess", lambda: assess(exercise, words, syllables, delta, (start, end))
+    )
     adjacent = voiced[1:] & voiced[:-1]
     jumps = int(np.sum(adjacent & (np.abs(np.diff(relative)) >= 11)))
     if jumps:
@@ -422,6 +477,7 @@ def analyze(
         "duration_s": round(duration, 4),
         "selection": {"start_s": start, "end_s": end},
         "quality": quality,
+        "alignment": alignment,
         "words": words,
         "syllables": syllables,
         "metrics": metrics,
@@ -442,10 +498,13 @@ def analyze(
             "ending_delta_st": delta,
             "word_rate_per_minute": round(
                 60 * len(words) / (words[-1]["end_s"] - words[0]["start_s"]), 1
-            ),
+            )
+            if words
+            else None,
         },
         "algorithm": {
             "alignment": "pocketsphinx-5.1.1-en-US",
+            "evidence_version": "english-prosody-1.1",
             "pitch": "raw_autocorrelation",
             "praat": parselmouth.PRAAT_VERSION,
             "parselmouth": parselmouth.__version__,
